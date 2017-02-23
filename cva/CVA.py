@@ -1,6 +1,7 @@
 from  QuantLib import *
 import numpy as np
 from math import *
+from contexttimer import Timer
 
 
 #indexes definitions
@@ -37,10 +38,18 @@ def make_index(term="6m"):
 def make_swap(maturity, index, startDate):
     fixedSchedule = Schedule(startDate, maturity,Period("6m"), TARGET(),ModifiedFollowing,ModifiedFollowing,DateGeneration.Forward, False)
     floatingSchedule = Schedule(startDate, maturity,Period("6m"),TARGET() ,ModifiedFollowing,ModifiedFollowing,DateGeneration.Forward, False)
-    swap1 = VanillaSwap(VanillaSwap.Receiver, 10000000,fixedSchedule,0.02, Actual360(),floatingSchedule, index, 0,Actual360())  #0.01215
-    return (swap1, floatingSchedule)
+    swap = VanillaSwap(VanillaSwap.Receiver, 10000000,fixedSchedule,0.02, Actual360(),floatingSchedule, index, 0,Actual360())  #0.01215
+    return (swap, floatingSchedule)
 
-def calc_cva(swap, T, floatingSchedule, index, Nsim, crvToday, crvMat, rmean, npvMat, Dates, forecastTermStructure):
+def calc_cva(swap, floatingSchedule, index, Nsim, forecastTermStructure, crvTodaydates, crvTodaydf, todaysDate, sigma):
+
+    (crvToday, npvMat, crvMat, rmean,Dates, T) = make_curves(crvTodaydates=crvTodaydates,
+                                                             crvTodaydf=crvTodaydf,
+                                                             todaysDate=todaysDate,
+                                                             sigma = sigma,
+                                                             Nsim=Nsim)
+
+
     for iT in xrange(len(T)):
         Settings.instance().evaluationDate=Dates[iT]
         allDates= list(floatingSchedule)
@@ -75,3 +84,45 @@ def calc_cva(swap, T, floatingSchedule, index, Nsim, crvToday, crvMat, rmean, np
         cva_sum +=0.5*crvToday.discount(T[i+1])*(EE[i]+EE[i+1])*(exp(-S*T[i]/(1.0-R))-exp(-S*T[i+1]/(1.0-R)))
     CVA=(1.0-R)*cva_sum
     return CVA
+
+def make_curves(crvTodaydates, crvTodaydf, todaysDate, sigma, Nsim):
+    crvToday=DiscountCurve(crvTodaydates,crvTodaydf,Actual360(),TARGET())
+    #crvToday=FlatForward(todaysDate,0.0121,Actual360())
+    a=0.376739
+
+    r0=forwardRate =crvToday.forwardRate(0,0, Continuous, NoFrequency).rate()
+    months=range(3,12*5+1,3)
+    sPeriods=[str(month)+"m" for month in months]
+    print sPeriods
+    Dates=[todaysDate]+[todaysDate+Period(s) for s in sPeriods]
+    T=[0]+[Actual360().yearFraction(todaysDate,Dates[i]) for i in xrange(1,len(Dates))]
+    T=np.array(T)
+    rmean=r0*np.exp(-a*T)+ gamma_v(T, crvToday,sigma) -gamma(0,crvToday, sigma)*np.exp(-a*T)
+    np.random.seed(1)
+    stdnorm = np.random.standard_normal(size=(Nsim,len(T)-1))
+
+    rmat=np.zeros(shape=(Nsim,len(T)))
+    rmat[:,0]=r0
+    for iSim in xrange(Nsim):
+        for iT in xrange(1,len(T)):
+            mean=rmat[iSim,iT-1]*exp(-a*(T[iT]-T[iT-1]))+gamma(T[iT], crvToday,sigma)-gamma(T[iT-1],crvToday,sigma)*exp(-a*(T[iT]-T[iT-1]))
+            var=0.5*sigma*sigma/a*(1-exp(-2*a*(T[iT]-T[iT-1])))
+            rmat[iSim,iT]=mean+stdnorm[iSim,iT-1]*sqrt(var)
+
+    with Timer() as t:
+        crvMat= [ [ 0 for i in xrange(len(T)) ] for iSim in range(Nsim) ]
+        npvMat= [ [ 0 for i in xrange(len(T)) ] for iSim in range(Nsim) ]
+
+        for row in crvMat:
+            row[0]=crvToday
+
+        for iT in xrange(1,len(T)):
+            for iSim in xrange(Nsim):
+                crvDate=Dates[iT];
+                crvDates=[crvDate]+[crvDate+Period(k,Years) for k in xrange(1,21)]
+                rt=rmat[iSim,iT]
+                #if (rt<0): rt=0
+                crvDiscounts=[1.0]+[A(T[iT],T[iT]+k, crvToday, sigma)*exp(-B(T[iT],T[iT]+k)*rt) for k in xrange(1,21)]
+                crvMat[iSim][iT]=DiscountCurve(crvDates,crvDiscounts,Actual360(),TARGET())
+        # print "time for curve creation: ", t.elapsed
+    return (crvToday, npvMat, crvMat, rmean,Dates, T)

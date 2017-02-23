@@ -3,45 +3,47 @@ import numpy as np
 from math import *
 from CVA import *
 from contexttimer import Timer
+import locale
+locale.setlocale( locale.LC_ALL, '' )
 
 Nsim=1000
 a=0.376739
 sigma=0.0209835
-todaysDate=Date(26,12,2013);
+todaysDate=Date(26,12,2016);
 Settings.instance().evaluationDate=todaysDate;
-crvTodaydates=[Date(26,12,2013),
-               Date(30,6,2014),
-               Date(30,7,2014),
-               Date(29,8,2014),
-               Date(30,9,2014),
-               Date(30,10,2014),
-               Date(28,11,2014),
-               Date(30,12,2014),
-               Date(30,1,2015),
-               Date(27,2,2015),
-               Date(30,3,2015),
-               Date(30,4,2015),
-               Date(29,5,2015),
-               Date(30,6,2015),
-               Date(30,12,2015),
-               Date(30,12,2016),
-               Date(29,12,2017),
-               Date(31,12,2018),
+crvTodaydates=[Date(26,12,2016),
+               Date(30,6,2017),
+               Date(30,7,2017),
+               Date(29,8,2017),
+               Date(30,9,2017),
+               Date(30,10,2017),
+               Date(28,11,2017),
+               Date(30,12,2017),
+               Date(30,1,2018),
+               Date(27,2,2018),
+               Date(30,3,2018),
+               Date(30,4,2018),
+               Date(29,5,2018),
+               Date(30,6,2018),
+               Date(30,12,2018),
                Date(30,12,2019),
-               Date(30,12,2020),
-               Date(30,12,2021),
+               Date(29,12,2020),
+               Date(31,12,2021),
                Date(30,12,2022),
-               Date(29,12,2023),
+               Date(30,12,2023),
                Date(30,12,2024),
                Date(30,12,2025),
-               Date(29,12,2028),
-               Date(30,12,2033),
-               Date(30,12,2038),
-               Date(30,12,2043),
-               Date(30,12,2048),
-               Date(30,12,2053),
-               Date(30,12,2058),
-               Date(31,12,2063)]
+               Date(29,12,2026),
+               Date(30,12,2027),
+               Date(30,12,2028),
+               Date(29,12,2031),
+               Date(30,12,2036),
+               Date(30,12,2041),
+               Date(30,12,2046),
+               Date(30,12,2051),
+               Date(30,12,2056),
+               Date(30,12,2061),
+               Date(31,12,2066)]
 crvTodaydf=[1.0,
             0.998022,
             0.99771,
@@ -77,86 +79,60 @@ crvTodaydf=[1.0,
             0.260792
             ]
 
-crvToday=DiscountCurve(crvTodaydates,crvTodaydf,Actual360(),TARGET())
-#crvToday=FlatForward(todaysDate,0.0121,Actual360())
 
-r0=forwardRate =crvToday.forwardRate(0,0, Continuous, NoFrequency).rate()
-months=range(3,12*5+1,3)
-sPeriods=[str(month)+"m" for month in months]
-print sPeriods
-Dates=[todaysDate]+[todaysDate+Period(s) for s in sPeriods]
-T=[0]+[Actual360().yearFraction(todaysDate,Dates[i]) for i in xrange(1,len(Dates))]
-T=np.array(T)
-rmean=r0*np.exp(-a*T)+ gamma_v(T, crvToday,sigma) -gamma(0,crvToday, sigma)*np.exp(-a*T)
-# rvar=sigma*sigma/2.0/a*(1.0-np.exp(-2.0*a*T))
-# rstd=np.sqrt(rvar)
-np.random.seed(1)
-stdnorm = np.random.standard_normal(size=(Nsim,len(T)-1))
 
-rmat=np.zeros(shape=(Nsim,len(T)))
-rmat[:,0]=r0
-for iSim in xrange(Nsim):
-    for iT in xrange(1,len(T)):
-        mean=rmat[iSim,iT-1]*exp(-a*(T[iT]-T[iT-1]))+gamma(T[iT], crvToday,sigma)-gamma(T[iT-1],crvToday,sigma)*exp(-a*(T[iT]-T[iT-1]))
-        var=0.5*sigma*sigma/a*(1-exp(-2*a*(T[iT]-T[iT-1])))
-        rmat[iSim,iT]=mean+stdnorm[iSim,iT-1]*sqrt(var)
 
-# bonds=np.zeros(shape=rmat.shape)
+def make_swap_portfolio(years = None, end_year=2023, months = None, end_month=None, days=None):
+    if years is None:
+        years = range(2021,end_year+1)
 
-# #E(E(exp(rt)|ti) test
-# for iSim in xrange(Nsim):
-#     for iT in xrange(1,len(T)):
-#         bonds[iSim,iT]=bonds[iSim,iT-1]+rmat[iSim,iT]*(T[iT]-T[iT-1])
+    if months is None:
+        if end_month is None:
+            months = range(1,4)
+        if type(end_month) is int:
+            months = range(1,end_month+1)
 
-# bonds=-bonds;
-# bonds=np.exp(bonds)
+    if days is None:
+        days = [1,5,10,20]
+    swaps = []
+    for year in years:
+        for month in months:
+            for day in days:
+                (index,forecastTermStructure)=make_index()
+                maturity = Date(26,12,year)
+                startDate = Date(26,12,2016)
+                (swap, floating_schedule)  = make_swap(maturity  = maturity,
+                                                       startDate = startDate,
+                                                       index     = index)
+                swaps.append((swap, floating_schedule, forecastTermStructure,index))
 
-#bondsmean=np.mean(bonds,axis=0)
-#plot(T,bondsmean)
-#plot(T,[crvToday.discount(T[iT]) for iT in xrange(len(T))])
-#show()
+    print "Created portfolio of ", len(swaps), " swaps"
+    return swaps
 
+large_swap_portfolio = make_swap_portfolio(end_year = 2031, end_month = 12, days = [1,5,10,15,20])
+small_swap_portfolio = make_swap_portfolio(end_year = 2023, end_month = 3, days = [1,5])
+one_swap_portfolio   = make_swap_portfolio(end_year = 2021, months=[12], days = [26])
+
+swap_portfolio  = large_swap_portfolio
 
 with Timer() as t:
-    crvMat= [ [ 0 for i in xrange(len(T)) ] for iSim in range(Nsim) ]
-    npvMat= [ [ 0 for i in xrange(len(T)) ] for iSim in range(Nsim) ]
-
-    for row in crvMat:
-        row[0]=crvToday
-
-    for iT in xrange(1,len(T)):
-        for iSim in xrange(Nsim):
-            crvDate=Dates[iT];
-            crvDates=[crvDate]+[crvDate+Period(k,Years) for k in xrange(1,21)]
-            rt=rmat[iSim,iT]
-            #if (rt<0): rt=0
-            crvDiscounts=[1.0]+[A(T[iT],T[iT]+k, crvToday, sigma)*exp(-B(T[iT],T[iT]+k)*rt) for k in xrange(1,21)]
-            crvMat[iSim][iT]=DiscountCurve(crvDates,crvDiscounts,Actual360(),TARGET())
-    print "time for curve creation: ", t.elapsed
-
-with Timer() as t:
-    maturity = Date(26,12,2018);
-    startDate=Date(26,12,2013);
-    (index,forecastTermStructure)=make_index()
-    (swap1, floatingSchedule) = make_swap(maturity=maturity,
-                                      startDate=startDate,
-                                      index=index)
-print "time for swap creation: ", t.elapsed
-
-with Timer() as t:
-    CVA = calc_cva(swap = swap1,
-                   T = T,
+    CVA_results = [(calc_cva(swap = swap,
                    floatingSchedule=floatingSchedule,
                    index=index,
                    Nsim = Nsim,
-                   crvToday=crvToday,
-                   crvMat=crvMat,
-                   rmean= rmean,
-                   npvMat = npvMat,
-                   Dates = Dates,
-                   forecastTermStructure=forecastTermStructure)
-    print "CVA is: ", CVA
-    print "time for CVA: ", t.elapsed
+                   forecastTermStructure=forecastTermStructure,
+                   crvTodaydates=crvTodaydates,
+                   crvTodaydf = crvTodaydf,
+                   todaysDate = todaysDate,
+                     sigma = sigma),swap) for (swap,floatingSchedule, forecastTermStructure,index) in swap_portfolio]
+
+    # print "CVA is: ", CVA
+    # print "time for CVA: ", t.elapsed
+    for (CVA,swap) in CVA_results:
+             print "CVA is: {CVA} for swap maturiting {year}/{month}/{day}".format(CVA=locale.currency(CVA, grouping=True),
+                                                                                   year=swap.maturityDate().year(),
+                                                                                   month=swap.maturityDate().month(),
+                                                                                   day=swap.maturityDate().dayOfMonth())
 
 #print '\nEE:\n',EE
 #print "\nnpv=",npv
