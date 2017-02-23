@@ -43,6 +43,7 @@ def make_swap(maturity, index, startDate):
 
 def calc_cva(swap, floatingSchedule, index, Nsim, forecastTermStructure, crvTodaydates, crvTodaydf, todaysDate, sigma):
 
+    ### Insert dask for make_curves
     (crvToday, npvMat, crvMat, rmean,Dates, T) = make_curves(crvTodaydates=crvTodaydates,
                                                              crvTodaydf=crvTodaydf,
                                                              todaysDate=todaysDate,
@@ -126,3 +127,13 @@ def make_curves(crvTodaydates, crvTodaydf, todaysDate, sigma, Nsim):
                 crvMat[iSim][iT]=DiscountCurve(crvDates,crvDiscounts,Actual360(),TARGET())
         # print "time for curve creation: ", t.elapsed
     return (crvToday, npvMat, crvMat, rmean,Dates, T)
+
+## Not used
+def plot_cva(T, EE, rmat, rmean):
+    #plot(T,EE)
+    nn#title('Expected Exposure')
+    #pxlabel('Time in years')
+    #plot(T,np.mean(rmat,axis=0))
+    #plot(T,rmean)
+    #plot(T,[npvMat[0,0]]*len(T))
+    #show()

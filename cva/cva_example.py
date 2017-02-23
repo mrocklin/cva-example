@@ -6,7 +6,7 @@ from contexttimer import Timer
 import locale
 locale.setlocale( locale.LC_ALL, '' )
 
-Nsim=1000
+
 a=0.376739
 sigma=0.0209835
 todaysDate=Date(26,12,2016);
@@ -109,46 +109,36 @@ def make_swap_portfolio(years = None, end_year=2023, months = None, end_month=No
     print "Created portfolio of ", len(swaps), " swaps"
     return swaps
 
-large_swap_portfolio = make_swap_portfolio(end_year = 2031, end_month = 12, days = [1,5,10,15,20])
-small_swap_portfolio = make_swap_portfolio(end_year = 2023, end_month = 3, days = [1,5])
+
+
 one_swap_portfolio   = make_swap_portfolio(end_year = 2021, months=[12], days = [26])
 
+## Starting Example (1)
 swap_portfolio  = large_swap_portfolio
 
-with Timer() as t:
-    CVA_results = [(calc_cva(swap = swap,
-                   floatingSchedule=floatingSchedule,
-                   index=index,
-                   Nsim = Nsim,
-                   forecastTermStructure=forecastTermStructure,
-                   crvTodaydates=crvTodaydates,
-                   crvTodaydf = crvTodaydf,
-                   todaysDate = todaysDate,
-                     sigma = sigma),swap) for (swap,floatingSchedule, forecastTermStructure,index) in swap_portfolio]
+## Small Portfolio (2)
+# small_swap_portfolio = make_swap_portfolio(end_year = 2023, end_month = 3, days = [1,5])
+# swap_portfolio  = small_swap_portfolio
 
-    # print "CVA is: ", CVA
-    # print "time for CVA: ", t.elapsed
+## Large Portfolio  (3)
+large_swap_portfolio = make_swap_portfolio(end_year = 2031, end_month = 12, days = [1,5,10,15,20])
+swap_portfolio = large_swap_portfolio
+
+Nsim=1000
+with Timer() as t:
+    ## Insert Dask here for calc_cva
+    CVA_results = [(calc_cva(swap = swap,
+                             floatingSchedule=floatingSchedule,
+                             index=index,
+                             Nsim = Nsim,
+                             forecastTermStructure=forecastTermStructure,
+                             crvTodaydates=crvTodaydates,
+                             crvTodaydf = crvTodaydf,
+                             todaysDate = todaysDate,
+                             sigma = sigma),swap) for (swap,floatingSchedule, forecastTermStructure,index) in swap_portfolio]
+
     for (CVA,swap) in CVA_results:
              print "CVA is: {CVA} for swap maturiting {year}/{month}/{day}".format(CVA=locale.currency(CVA, grouping=True),
                                                                                    year=swap.maturityDate().year(),
                                                                                    month=swap.maturityDate().month(),
                                                                                    day=swap.maturityDate().dayOfMonth())
-
-#print '\nEE:\n',EE
-#print "\nnpv=",npv
-#print "\nCVA=",CVA
-#print "\nnpv",npvMat
-#print '\nrmat:\n',rmat
-#print '\nrmean:\n',rmean
-#print '\nrstd:\n',rstd
-#print '\n95% are in \n',zip(rmean-2*rstd,rmean+2*rstd)
-
-
-def plot_cva(T, EE, rmat, rmean):
-    #plot(T,EE)
-    nn#title('Expected Exposure')
-    #pxlabel('Time in years')
-    #plot(T,np.mean(rmat,axis=0))
-    #plot(T,rmean)
-    #plot(T,[npvMat[0,0]]*len(T))
-    #show()
