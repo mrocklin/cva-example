@@ -106,7 +106,7 @@ def make_swap_portfolio(years = None, end_year=2023, months = None, end_month=No
                                                        index     = index)
                 swaps.append((swap, floating_schedule, forecastTermStructure,index))
 
-    print "Created portfolio of ", len(swaps), " swaps"
+    print("Created portfolio of ", len(swaps), " swaps")
     return swaps
 
 
@@ -114,7 +114,7 @@ def make_swap_portfolio(years = None, end_year=2023, months = None, end_month=No
 one_swap_portfolio   = make_swap_portfolio(end_year = 2021, months=[12], days = [26])
 
 ## Starting Example (1)
-swap_portfolio  = large_swap_portfolio
+# swap_portfolio  = large_swap_portfolio
 
 ## Small Portfolio (2)
 # small_swap_portfolio = make_swap_portfolio(end_year = 2023, end_month = 3, days = [1,5])
@@ -138,7 +138,7 @@ with Timer() as t:
                              sigma = sigma),swap) for (swap,floatingSchedule, forecastTermStructure,index) in swap_portfolio]
 
     for (CVA,swap) in CVA_results:
-             print "CVA is: {CVA} for swap maturiting {year}/{month}/{day}".format(CVA=locale.currency(CVA, grouping=True),
+             print("CVA is: {CVA} for swap maturiting {year}/{month}/{day}".format(CVA=locale.currency(CVA, grouping=True),
                                                                                    year=swap.maturityDate().year(),
                                                                                    month=swap.maturityDate().month(),
-                                                                                   day=swap.maturityDate().dayOfMonth())
+                                                                                   day=swap.maturityDate().dayOfMonth()))

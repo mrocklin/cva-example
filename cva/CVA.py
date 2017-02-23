@@ -24,7 +24,7 @@ def gamma(t, crvToday, sigma):
 
 def gamma_v(t, crvToday, sigma): #vectorized version of gamma(t), this is not vectorized
     res=np.zeros(len(t))
-    for i in xrange(len(t)):
+    for i in range(len(t)):
         res[i]=gamma(t[i], crvToday, sigma)
     return res
 
@@ -51,10 +51,12 @@ def calc_cva(swap, floatingSchedule, index, Nsim, forecastTermStructure, crvToda
                                                              Nsim=Nsim)
 
 
-    for iT in xrange(len(T)):
+    for iT in range(len(T)):
         Settings.instance().evaluationDate=Dates[iT]
         allDates= list(floatingSchedule)
-        fixingdates=[index.fixingDate(floatingSchedule[iDate]) for iDate in xrange(len(allDates)) if index.fixingDate(floatingSchedule[iDate])<=Dates[iT]]
+        fixingdates=[index.fixingDate(floatingSchedule[iDate])
+                     for iDate in range(len(allDates))
+                     if str(index.fixingDate(floatingSchedule[iDate])) <= str(Dates[iT])]
         if fixingdates:
             for date in fixingdates[:-1]:
                 try:index.addFixing(date,0.0)
@@ -65,7 +67,7 @@ def calc_cva(swap, floatingSchedule, index, Nsim, forecastTermStructure, crvToda
         swapEngine = DiscountingSwapEngine(discountTermStructure)
         swap.setPricingEngine(swapEngine)
 
-        for iSim in xrange(Nsim):
+        for iSim in range(Nsim):
             crv=crvMat[iSim][iT]
             discountTermStructure.linkTo(crv)
             forecastTermStructure.linkTo(crv)
@@ -81,7 +83,7 @@ def calc_cva(swap, floatingSchedule, index, Nsim, forecastTermStructure, crvToda
 
     ## Calc CVA
     cva_sum=0
-    for i in xrange(len(T)-1):
+    for i in range(len(T)-1):
         cva_sum +=0.5*crvToday.discount(T[i+1])*(EE[i]+EE[i+1])*(exp(-S*T[i]/(1.0-R))-exp(-S*T[i+1]/(1.0-R)))
     CVA=(1.0-R)*cva_sum
     return CVA
@@ -94,9 +96,9 @@ def make_curves(crvTodaydates, crvTodaydf, todaysDate, sigma, Nsim):
     r0=forwardRate =crvToday.forwardRate(0,0, Continuous, NoFrequency).rate()
     months=range(3,12*5+1,3)
     sPeriods=[str(month)+"m" for month in months]
-    print sPeriods
+    print(sPeriods)
     Dates=[todaysDate]+[todaysDate+Period(s) for s in sPeriods]
-    T=[0]+[Actual360().yearFraction(todaysDate,Dates[i]) for i in xrange(1,len(Dates))]
+    T=[0]+[Actual360().yearFraction(todaysDate,Dates[i]) for i in range(1,len(Dates))]
     T=np.array(T)
     rmean=r0*np.exp(-a*T)+ gamma_v(T, crvToday,sigma) -gamma(0,crvToday, sigma)*np.exp(-a*T)
     np.random.seed(1)
@@ -104,26 +106,26 @@ def make_curves(crvTodaydates, crvTodaydf, todaysDate, sigma, Nsim):
 
     rmat=np.zeros(shape=(Nsim,len(T)))
     rmat[:,0]=r0
-    for iSim in xrange(Nsim):
-        for iT in xrange(1,len(T)):
+    for iSim in range(Nsim):
+        for iT in range(1,len(T)):
             mean=rmat[iSim,iT-1]*exp(-a*(T[iT]-T[iT-1]))+gamma(T[iT], crvToday,sigma)-gamma(T[iT-1],crvToday,sigma)*exp(-a*(T[iT]-T[iT-1]))
             var=0.5*sigma*sigma/a*(1-exp(-2*a*(T[iT]-T[iT-1])))
             rmat[iSim,iT]=mean+stdnorm[iSim,iT-1]*sqrt(var)
 
     with Timer() as t:
-        crvMat= [ [ 0 for i in xrange(len(T)) ] for iSim in range(Nsim) ]
-        npvMat= [ [ 0 for i in xrange(len(T)) ] for iSim in range(Nsim) ]
+        crvMat= [ [ 0 for i in range(len(T)) ] for iSim in range(Nsim) ]
+        npvMat= [ [ 0 for i in range(len(T)) ] for iSim in range(Nsim) ]
 
         for row in crvMat:
             row[0]=crvToday
 
-        for iT in xrange(1,len(T)):
-            for iSim in xrange(Nsim):
+        for iT in range(1,len(T)):
+            for iSim in range(Nsim):
                 crvDate=Dates[iT];
-                crvDates=[crvDate]+[crvDate+Period(k,Years) for k in xrange(1,21)]
+                crvDates=[crvDate]+[crvDate+Period(k,Years) for k in range(1,21)]
                 rt=rmat[iSim,iT]
                 #if (rt<0): rt=0
-                crvDiscounts=[1.0]+[A(T[iT],T[iT]+k, crvToday, sigma)*exp(-B(T[iT],T[iT]+k)*rt) for k in xrange(1,21)]
+                crvDiscounts=[1.0]+[A(T[iT],T[iT]+k, crvToday, sigma)*exp(-B(T[iT],T[iT]+k)*rt) for k in range(1,21)]
                 crvMat[iSim][iT]=DiscountCurve(crvDates,crvDiscounts,Actual360(),TARGET())
         # print "time for curve creation: ", t.elapsed
     return (crvToday, npvMat, crvMat, rmean,Dates, T)
