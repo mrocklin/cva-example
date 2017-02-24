@@ -1,4 +1,4 @@
-from QuantLib import *
+import QuantLib as ql
 import numpy as np
 from math import *
 from contexttimer import Timer
@@ -7,8 +7,8 @@ from datetime import date
 # indexes definitions
 
 def A(t, T, crvToday, sigma):
-    evaldate = Settings.instance().evaluationDate
-    forward = crvToday.forwardRate(t, t, Continuous, NoFrequency).rate()
+    evaldate = ql.Settings.instance().evaluationDate
+    forward = crvToday.forwardRate(t, t, ql.Continuous, ql.NoFrequency).rate()
     value = B(t, T) * forward - 0.25 * sigma * \
         B(t, T) * sigma * B(t, T) * B(0.0, 2.0 * t)
     return exp(value) * crvToday.discount(T) / crvToday.discount(t)
@@ -21,7 +21,7 @@ def B(t, T):
 
 def gamma(t, crvToday, sigma):
     a = 0.376739
-    forwardRate = crvToday.forwardRate(t, t, Continuous, NoFrequency).rate()
+    forwardRate = crvToday.forwardRate(t, t, ql.Continuous, ql.NoFrequency).rate()
     temp = sigma * (1.0 - exp(-a * t)) / a
     return (forwardRate + 0.5 * temp * temp)
 
@@ -34,36 +34,36 @@ def gamma_v(t, crvToday, sigma):  # vectorized version of gamma(t), this is not 
 
 
 def make_index(term="6m"):
-    forecastTermStructure = RelinkableYieldTermStructureHandle()
-    index = Euribor(Period(term), forecastTermStructure)
+    forecastTermStructure = ql.RelinkableYieldTermStructureHandle()
+    index = ql.Euribor(ql.Period(term), forecastTermStructure)
     return (index, forecastTermStructure)
 
 # swap 1 definition
 
 
 def make_swap(maturity, index, startDate):
-    fixedSchedule = Schedule(startDate, maturity, Period("6m"), TARGET(),
-                             ModifiedFollowing, ModifiedFollowing,
-                             DateGeneration.Forward, False)
-    floatingSchedule = Schedule(startDate, maturity, Period("6m"), TARGET(),
-                                ModifiedFollowing, ModifiedFollowing,
-                                DateGeneration.Forward, False)
-    swap = VanillaSwap(VanillaSwap.Receiver, 10000000, fixedSchedule, 0.02,
-                       Actual360(), floatingSchedule, index, 0, Actual360())
+    fixedSchedule = ql.Schedule(startDate, maturity, ql.Period("6m"), ql.TARGET(),
+                             ql.ModifiedFollowing, ql.ModifiedFollowing,
+                             ql.DateGeneration.Forward, False)
+    floatingSchedule = ql.Schedule(startDate, maturity, ql.Period("6m"), ql.TARGET(),
+                                ql.ModifiedFollowing, ql.ModifiedFollowing,
+                                ql.DateGeneration.Forward, False)
+    swap = ql.VanillaSwap(ql.VanillaSwap.Receiver, 10000000, fixedSchedule, 0.02,
+                       ql.Actual360(), floatingSchedule, index, 0, ql.Actual360())
     return (swap, floatingSchedule)
 
 
 def calc_cva(dt_startdate, dt_maturitydate, Nsim, crvTodaydates_dt, crvTodaydf, todaysDate_dt, sigma):
-    todaysDate=Date(todaysDate_dt.day,todaysDate_dt.month, todaysDate_dt.year)
-    Settings.instance().evaluationDate=todaysDate;
+    todaysDate=ql.Date(todaysDate_dt.day,todaysDate_dt.month, todaysDate_dt.year)
+    ql.Settings.instance().evaluationDate=todaysDate;
 
-    crvTodaydates = [Date(dt.day, dt.month, dt.year) for dt in crvTodaydates_dt]
+    crvTodaydates = [ql.Date(dt.day, dt.month, dt.year) for dt in crvTodaydates_dt]
 
     (index,forecastTermStructure)=make_index()
-    maturity = Date(dt_maturitydate.day,
+    maturity = ql.Date(dt_maturitydate.day,
                     dt_maturitydate.month,
                     dt_maturitydate.year)
-    startDate = Date(26,12,2016)
+    startDate = ql.Date(26,12,2016)
     (swap, floatingSchedule)  = make_swap(maturity  = maturity,
                                           startDate = startDate,
                                           index     = index)
@@ -74,7 +74,7 @@ def calc_cva(dt_startdate, dt_maturitydate, Nsim, crvTodaydates_dt, crvTodaydf, 
             todaysDate=todaysDate, sigma=sigma, Nsim=Nsim)
 
     for iT in range(len(T)):
-        Settings.instance().evaluationDate = Dates[iT]
+        ql.Settings.instance().evaluationDate = Dates[iT]
         allDates = list(floatingSchedule)
         fixingdates = [index.fixingDate(floatingSchedule[iDate])
                        for iDate in range(len(allDates))
@@ -90,8 +90,8 @@ def calc_cva(dt_startdate, dt_maturitydate, Nsim, crvTodaydates_dt, crvTodaydf, 
                 index.addFixing(fixingdates[-1], rmean[iT])
             except:
                 pass
-        discountTermStructure = RelinkableYieldTermStructureHandle()
-        swapEngine = DiscountingSwapEngine(discountTermStructure)
+        discountTermStructure = ql.RelinkableYieldTermStructureHandle()
+        swapEngine = ql.DiscountingSwapEngine(discountTermStructure)
         swap.setPricingEngine(swapEngine)
 
         for iSim in range(Nsim):
@@ -118,16 +118,16 @@ def calc_cva(dt_startdate, dt_maturitydate, Nsim, crvTodaydates_dt, crvTodaydf, 
 
 
 def make_curves(crvTodaydates, crvTodaydf, todaysDate, sigma, Nsim):
-    crvToday = DiscountCurve(crvTodaydates, crvTodaydf, Actual360(), TARGET())
+    crvToday = ql.DiscountCurve(crvTodaydates, crvTodaydf, ql.Actual360(), ql.TARGET())
     # crvToday=FlatForward(todaysDate,0.0121,Actual360())
     a = 0.376739
 
-    r0 = forwardRate = crvToday.forwardRate(0, 0, Continuous, NoFrequency).rate()
+    r0 = forwardRate = crvToday.forwardRate(0, 0, ql.Continuous, ql.NoFrequency).rate()
     months = range(3, 12 * 5 + 1, 3)
     sPeriods = [str(month) + "m" for month in months]
     print(sPeriods)
-    Dates = [todaysDate] + [todaysDate + Period(s) for s in sPeriods]
-    T = [0] + [Actual360().yearFraction(todaysDate, Dates[i])
+    Dates = [todaysDate] + [todaysDate + ql.Period(s) for s in sPeriods]
+    T = [0] + [ql.Actual360().yearFraction(todaysDate, Dates[i])
                for i in range(1, len(Dates))]
     T = np.array(T)
     rmean = (r0 * np.exp(-a * T) + gamma_v(T, crvToday, sigma) -
@@ -159,13 +159,14 @@ def make_curves(crvTodaydates, crvTodaydf, todaysDate, sigma, Nsim):
         for iT in range(1, len(T)):
             for iSim in range(Nsim):
                 crvDate = Dates[iT]
-                crvDates = [crvDate] + [crvDate + Period(k, Years)
+                crvDates = [crvDate] + [crvDate + ql.Period(k, ql.Years)
                                         for k in range(1, 21)]
                 rt = rmat[iSim, iT]
                 #if (rt<0): rt=0
                 crvDiscounts = [1.0] + [A(T[iT], T[iT] + k, crvToday, sigma)
                                         * exp(-B(T[iT], T[iT] + k) * rt) for k in range(1, 21)]
-                crvMat[iSim][iT] = DiscountCurve(crvDates, crvDiscounts, Actual360(), TARGET())
+                crvMat[iSim][iT] = ql.DiscountCurve(crvDates, crvDiscounts,
+                        ql.Actual360(), ql.TARGET())
         # print("time for curve creation: ", t.elapsed)
     return (crvToday, npvMat, crvMat, rmean, Dates, T)
 

@@ -13,38 +13,38 @@ a=0.376739
 sigma=0.0209835
 todaysDate_dt=date(day=26,month=12,year=2016);
 crvTodaydates_dt=[date(day=26,month=12,year=2016),
-               date(day=30,month=6,year=2017),
-               date(day=30,month=7,year=2017),
-               date(day=29,month=8,year=2017),
-               date(day=30,month=9,year=2017),
-               date(day=30,month=10,year=2017),
-               date(day=28,month=11,year=2017),
-               date(day=30,month=12,year=2017),
-               date(day=30,month=1,year=2018),
-               date(day=27,month=2,year=2018),
-               date(day=30,month=3,year=2018),
-               date(day=30,month=4,year=2018),
-               date(day=29,month=5,year=2018),
-               date(day=30,month=6,year=2018),
-               date(day=30,month=12,year=2018),
-               date(day=30,month=12,year=2019),
-               date(day=29,month=12,year=2020),
-               date(day=31,month=12,year=2021),
-               date(day=30,month=12,year=2022),
-               date(day=30,month=12,year=2023),
-               date(day=30,month=12,year=2024),
-               date(day=30,month=12,year=2025),
-               date(day=29,month=12,year=2026),
-               date(day=30,month=12,year=2027),
-               date(day=30,month=12,year=2028),
-               date(day=29,month=12,year=2031),
-               date(day=30,month=12,year=2036),
-               date(day=30,month=12,year=2041),
-               date(day=30,month=12,year=2046),
-               date(day=30,month=12,year=2051),
-               date(day=30,month=12,year=2056),
-               date(day=30,month=12,year=2061),
-               date(day=31,month=12,year=2066)]
+                  date(day=30,month=6,year=2017),
+                  date(day=30,month=7,year=2017),
+                  date(day=29,month=8,year=2017),
+                  date(day=30,month=9,year=2017),
+                  date(day=30,month=10,year=2017),
+                  date(day=28,month=11,year=2017),
+                  date(day=30,month=12,year=2017),
+                  date(day=30,month=1,year=2018),
+                  date(day=27,month=2,year=2018),
+                  date(day=30,month=3,year=2018),
+                  date(day=30,month=4,year=2018),
+                  date(day=29,month=5,year=2018),
+                  date(day=30,month=6,year=2018),
+                  date(day=30,month=12,year=2018),
+                  date(day=30,month=12,year=2019),
+                  date(day=29,month=12,year=2020),
+                  date(day=31,month=12,year=2021),
+                  date(day=30,month=12,year=2022),
+                  date(day=30,month=12,year=2023),
+                  date(day=30,month=12,year=2024),
+                  date(day=30,month=12,year=2025),
+                  date(day=29,month=12,year=2026),
+                  date(day=30,month=12,year=2027),
+                  date(day=30,month=12,year=2028),
+                  date(day=29,month=12,year=2031),
+                  date(day=30,month=12,year=2036),
+                  date(day=30,month=12,year=2041),
+                  date(day=30,month=12,year=2046),
+                  date(day=30,month=12,year=2051),
+                  date(day=30,month=12,year=2056),
+                  date(day=30,month=12,year=2061),
+                  date(day=31,month=12,year=2066)]
 crvTodaydf=[1.0,
             0.998022,
             0.99771,
@@ -96,6 +96,9 @@ large_swap_portfolio = make_swap_portfolio(
 
 # swap_portfolio = large_swap_portfolio
 
+# from dask import delayed, compute
+# import dask.multiprocessing
+
 Nsim = 1000
 with Timer() as t:
     # Insert Dask here for calc_cva
@@ -106,6 +109,7 @@ with Timer() as t:
                              crvTodaydf = crvTodaydf,
                              todaysDate_dt = todaysDate_dt,
                              sigma = sigma),maturity_date) for (start_date, maturity_date) in swap_portfolio]
+    # CVA_results = compute(*CVA_results, get=dask.multiprocessing.get)
     for (CVA,maturity_date) in CVA_results:
         print(
             "CVA: {CVA} for swap maturing {year}/{month}/{day}".format(
