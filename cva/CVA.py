@@ -2,7 +2,7 @@ from QuantLib import *
 import numpy as np
 from math import *
 from contexttimer import Timer
-
+from datetime import date
 
 # indexes definitions
 
@@ -53,8 +53,20 @@ def make_swap(maturity, index, startDate):
     return (swap, floatingSchedule)
 
 
-def calc_cva(swap, floatingSchedule, index, Nsim, forecastTermStructure,
-             crvTodaydates, crvTodaydf, todaysDate, sigma):
+def calc_cva(dt_startdate, dt_maturitydate, Nsim, crvTodaydates_dt, crvTodaydf, todaysDate_dt, sigma):
+    todaysDate=Date(todaysDate_dt.day,todaysDate_dt.month, todaysDate_dt.year)
+    Settings.instance().evaluationDate=todaysDate;
+
+    crvTodaydates = [Date(dt.day, dt.month, dt.year) for dt in crvTodaydates_dt]
+
+    (index,forecastTermStructure)=make_index()
+    maturity = Date(dt_maturitydate.day,
+                    dt_maturitydate.month,
+                    dt_maturitydate.year)
+    startDate = Date(26,12,2016)
+    (swap, floatingSchedule)  = make_swap(maturity  = maturity,
+                                          startDate = startDate,
+                                          index     = index)
 
     # Insert dask for make_curves
     (crvToday, npvMat, crvMat, rmean, Dates, T) = make_curves(
@@ -132,7 +144,7 @@ def make_curves(crvTodaydates, crvTodaydf, todaysDate, sigma, Nsim):
                   * exp(-a * (T[iT] - T[iT - 1]))
                   + gamma(T[iT], crvToday, sigma)
                   - gamma(T[iT - 1], crvToday, sigma)
-                  * exp(-a * (T[iT] - T[iT - 1]))
+                  * exp(-a * (T[iT] - T[iT - 1])))
             var = (0.5 * sigma * sigma / a *
                   (1 - exp(-2 * a * (T[iT] - T[iT - 1]))))
             rmat[iSim, iT] = mean + stdnorm[iSim, iT - 1] * sqrt(var)
@@ -157,6 +169,39 @@ def make_curves(crvTodaydates, crvTodaydf, todaysDate, sigma, Nsim):
         # print("time for curve creation: ", t.elapsed)
     return (crvToday, npvMat, crvMat, rmean, Dates, T)
 
+
+
+def make_swap_portfolio(years=None, end_year=2023, months=None,
+                        end_month=None, days=None):
+    if years is None:
+        years = range(2021, end_year + 1)
+
+    if months is None:
+        if end_month is None:
+            months = range(1, 4)
+        if isinstance(end_month, int):
+            months = range(1, end_month + 1)
+
+    if days is None:
+        days = [1, 5, 10, 20]
+
+    swaps = []
+    for year in years:
+        for month in months:
+            for day in days:
+                # (index, forecastTermStructure) = make_index()
+                # maturity = Date(26, 12, year)
+                # startDate = Date(26, 12, 2016)
+                # (swap, floating_schedule) = make_swap(maturity=maturity,
+                #                                       startDate=startDate,
+                #                                       index=index)
+                # swaps.append(
+                #     (swap, floating_schedule, forecastTermStructure, index))
+                swaps.append((date(day=26,month=12,year=2016),
+                              date(day=day,month=month,year=year)))
+
+    print("Created portfolio of ", len(swaps), " swaps")
+    return swaps
 
 def plot_cva(T, EE, rmat, rmean):
     # plot(T,EE)
